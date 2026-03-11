@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oud Legacy — Design Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Cinzel:wght@400;500;600&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+
+/* ─────────────────────────────────────
+   CORE LAYOUT — OVERLAY REVEAL
+   Both panes are FULL WIDTH, stacked
+   Wireframe sits on top, clipped left
+   Slider moves the clip boundary
+───────────────────────────────────── */
+#wrap{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+}
+.pane{
+  position:absolute;
+  top:0;left:0;
+  width:100%;
+  height:100vh;
+  overflow-y:scroll;
+  overflow-x:hidden;
+  scrollbar-width:none;
+}
+.pane::-webkit-scrollbar{display:none;}
+#pane-land{ z-index:1; }
+#pane-wire{
+  z-index:2;
+  background:#f0ede8;
+  /* clip from LEFT: shows wireframe on right half by default */
+  clip-path:inset(0 0 0 50%);
+  will-change:clip-path;
+}
+
+/* ─────────────────────────────────────
+   SLIDER
+───────────────────────────────────── */
+#slider{
+  position:fixed;
+  top:0;bottom:0;
+  left:50%;
+  width:64px;
+  transform:translateX(-50%);
+  z-index:10000;
+  cursor:ew-resize;
+  user-select:none;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:all;
+}
+#sl-track{
+  position:absolute;top:0;bottom:0;left:50%;width:2px;
+  transform:translateX(-50%);
+  background:linear-gradient(to bottom,transparent 0%,#c9a84c 10%,#c9a84c 90%,transparent 100%);
+  box-shadow:0 0 18px rgba(201,168,76,.6);
+}
+#sl-btn{
+  position:relative;z-index:2;
+  width:52px;height:52px;border-radius:50%;
+  background:#c9a84c;color:#0c0a06;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;
+  box-shadow:0 4px 24px rgba(201,168,76,.7);
+  transition:transform .15s;
+  pointer-events:all;
+}
+#sl-btn:hover{transform:scale(1.1);}
+
+/* Labels — fixed, full width, each shows on its pane */
+#lbl-land{
+  position:fixed;top:0;left:0;right:0;
+  height:34px;z-index:9996;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:.28em;text-transform:uppercase;
+  background:rgba(12,10,6,.95);color:#c9a84c;
+  border-bottom:1px solid rgba(201,168,76,.2);
+}
+#lbl-wire{
+  position:fixed;top:0;left:0;right:0;
+  height:34px;z-index:9997;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:.28em;text-transform:uppercase;
+  background:rgba(232,228,222,.97);color:#888;
+  border-bottom:1px solid #c4bfb6;
+  /* clip matches wireframe pane */
+  clip-path:inset(0 0 0 50%);
+  will-change:clip-path;
+}
+
+/* ─────────────────────────────────────
+   LANDING PAGE
+───────────────────────────────────── */
+#land-content{
+  background:#0c0a06;
+  color:#ede3c8;
+  font-family:'Jost',sans-serif;
+  font-weight:300;
+  min-height:100vh;
+  padding-top:34px; /* below label bar */
+  position:relative;
+}
+
+canvas#ptcl{
+  position:fixed;top:34px;left:0;
+  width:50%;height:100%;
+  pointer-events:none;z-index:0;opacity:.45;
+  /* stays left half — particles only visible on landing side */
+}
+
+/* NAV */
+.lnav{
+  position:sticky;top:0;z-index:500;
+  height:68px;padding:0 44px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(12,10,6,.97);
+  border-bottom:1px solid rgba(201,168,76,.12);
+  backdrop-filter:blur(12px);
+}
+.logo-wrap{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-main{font-family:'Cinzel',serif;font-size:13px;letter-spacing:.34em;color:#c9a84c;text-transform:uppercase;display:block;}
+.logo-sub{font-family:'Cormorant Garamond',serif;font-size:8px;letter-spacing:.38em;color:rgba(201,168,76,.42);text-transform:uppercase;margin-top:2px;display:block;}
+.lnav-links{display:flex;gap:28px;list-style:none;}
+.lnav-links a{font-size:9px;letter-spacing:.2em;color:rgba(237,227,200,.42);text-decoration:none;text-transform:uppercase;transition:color .3s;}
+.lnav-links a:hover{color:#c9a84c;}
+.lnav-cta{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#c9a84c;border:1px solid rgba(201,168,76,.22);padding:9px 20px;text-decoration:none;transition:all .3s;}
+.lnav-cta:hover{background:rgba(201,168,76,.1);border-color:#c9a84c;}
+
+/* HERO */
+.hero{
+  position:relative;height:calc(100vh - 102px);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:#0c0a06;
+}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 65% 65% at 50% 55%,rgba(201,168,76,.11),transparent 65%);}
+.hring{position:absolute;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);border:1px solid rgba(201,168,76,.07);animation:breathe 9s ease-in-out infinite;}
+.hring:nth-child(1){width:240px;height:240px;}
+.hring:nth-child(2){width:420px;height:420px;animation-delay:2s;border-color:rgba(201,168,76,.04);}
+.hring:nth-child(3){width:600px;height:600px;animation-delay:4s;border-color:rgba(201,168,76,.02);}
+@keyframes breathe{0%,100%{opacity:.9;transform:translate(-50%,-50%) scale(1);}50%{opacity:.2;transform:translate(-50%,-50%) scale(1.03);}}
+
+.hero-content{position:relative;z-index:2;text-align:center;padding:0 28px;max-width:520px;}
+.h-eye{font-size:9px;letter-spacing:.5em;color:#c9a84c;text-transform:uppercase;margin-bottom:22px;display:flex;align-items:center;justify-content:center;gap:12px;opacity:0;animation:fadeUp .9s ease .3s forwards;}
+.h-eye i{display:inline-block;width:18px;height:1px;background:#c9a84c;opacity:.4;}
+.h-h1{font-family:'Cormorant Garamond',serif;font-size:clamp(58px,9vw,108px);font-weight:300;line-height:.88;color:#ede3c8;opacity:0;animation:fadeUp 1s ease .5s forwards;}
+.h-h1 em{font-style:italic;color:#c9a84c;display:block;}
+.h-tag{font-family:'Cormorant Garamond',serif;font-size:clamp(13px,1.9vw,18px);font-style:italic;color:rgba(237,227,200,.42);letter-spacing:.07em;margin:14px 0 38px;opacity:0;animation:fadeUp 1s ease .7s forwards;}
+.h-btns{display:flex;gap:12px;justify-content:center;opacity:0;animation:fadeUp 1s ease .9s forwards;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
+
+/* Hero bottle — right aligned inside hero */
+.h-bottle{
+  position:absolute;right:5%;top:50%;transform:translateY(-50%);
+  z-index:1;opacity:0;animation:bottleIn 1.3s ease 1s forwards;
+  filter:drop-shadow(0 0 48px rgba(201,168,76,.3));
+}
+@keyframes bottleIn{from{opacity:0;transform:translateY(-44%);}to{opacity:1;transform:translateY(-50%);}}
+.h-bottle svg{animation:bottleFloat 6s ease-in-out infinite;}
+@keyframes bottleFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-15px);}}
+
+.btn-g{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;background:#c9a84c;color:#0c0a06;border:none;padding:13px 36px;text-decoration:none;display:inline-block;cursor:pointer;transition:all .3s;}
+.btn-g:hover{background:#e8c96e;transform:translateY(-2px);}
+.btn-o{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;background:transparent;color:#ede3c8;border:1px solid rgba(237,227,200,.18);padding:13px 36px;text-decoration:none;display:inline-block;cursor:pointer;transition:all .3s;}
+.btn-o:hover{border-color:#c9a84c;color:#c9a84c;}
+
+/* MARQUEE */
+.mq{overflow:hidden;border-top:1px solid rgba(201,168,76,.13);border-bottom:1px solid rgba(201,168,76,.13);background:#0c0a06;padding:12px 0;}
+.mq-t{display:flex;animation:mroll 20s linear infinite;width:max-content;}
+.mq-i{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:#c9a84c;opacity:.48;padding:0 34px;white-space:nowrap;}
+.mq-i::after{content:' ✦';opacity:.4;}
+@keyframes mroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+
+/* SECTION BASE */
+.slb{font-size:9px;letter-spacing:.46em;color:#c9a84c;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:12px;}
+.slb::before{content:'';display:block;width:18px;height:1px;background:#c9a84c;opacity:.5;}
+.sh2{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,3.6vw,48px);font-weight:300;line-height:1.1;color:#ede3c8;}
+.sh2 em{font-style:italic;color:#c9a84c;}
+.rv{opacity:0;transform:translateY(22px);transition:opacity .8s,transform .8s;}
+.rv.on{opacity:1;transform:none;}
+.d1{transition-delay:.12s;}.d2{transition-delay:.22s;}
+
+/* PILLARS */
+.pillars{padding:88px 44px;background:#0c0a06;}
+.pg3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(201,168,76,.13);margin-top:44px;}
+.pc{background:#0c0a06;padding:38px 28px;position:relative;overflow:hidden;transition:background .4s;}
+.pc:hover{background:#15120a;}
+.pc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#c9a84c,transparent);opacity:0;transition:opacity .4s;}
+.pc:hover::after{opacity:.5;}
+.pc-n{font-family:'Cormorant Garamond',serif;font-size:62px;font-weight:300;color:rgba(201,168,76,.05);position:absolute;top:4px;right:12px;line-height:1;}
+.pc-i{font-size:24px;margin-bottom:16px;display:block;}
+.pc h3{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.17em;color:#c9a84c;text-transform:uppercase;margin-bottom:11px;}
+.pc p{font-size:12.5px;line-height:1.82;color:rgba(237,227,200,.42);}
+
+/* COLLECTION */
+.collec{padding:88px 44px;background:#100e08;}
+.col-hd{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:40px;}
+.ppg{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:auto auto;gap:1px;background:rgba(201,168,76,.13);}
+.pd{background:#0c0a06;overflow:hidden;cursor:pointer;transition:background .4s;position:relative;}
+.pd:hover{background:#15120a;}
+.pd.big{grid-row:span 2;}
+.pd-v{background:linear-gradient(148deg,#1a1408,#0c0a06);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.pd.big .pd-v{height:360px;}
+.pd:not(.big) .pd-v{height:164px;}
+.pd-v::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 55% 55% at 50% 50%,rgba(201,168,76,.13),transparent 70%);opacity:0;transition:opacity .5s;}
+.pd:hover .pd-v::before{opacity:1;}
+.pdsvg{transition:transform .5s,filter .5s;}
+.pd:hover .pdsvg{transform:translateY(-8px) scale(1.07);filter:drop-shadow(0 0 28px rgba(201,168,76,.6));}
+.pd-badge{position:absolute;top:12px;left:12px;font-family:'Cinzel',serif;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;padding:3px 9px;z-index:2;}
+.pd-badge.b{background:#c9a84c;color:#0c0a06;}
+.pd-badge.n{color:#c9a84c;border:1px solid rgba(201,168,76,.42);}
+.pd-i{padding:18px 20px 22px;}
+.pd-br{font-size:8px;letter-spacing:.32em;color:#c9a84c;text-transform:uppercase;margin-bottom:4px;opacity:.62;}
+.pd-nm{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;color:#ede3c8;margin-bottom:6px;}
+.pd.big .pd-nm{font-size:24px;}
+.pd-ds{font-size:12px;color:rgba(237,227,200,.42);line-height:1.7;margin-bottom:14px;}
+.pd-ft{display:flex;align-items:center;justify-content:space-between;}
+.pd-pr{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:#c9a84c;}
+.pd-pr small{font-size:9.5px;color:rgba(237,227,200,.42);font-family:'Jost',sans-serif;}
+.pd-add{font-family:'Cinzel',serif;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#c9a84c;border:1px solid rgba(201,168,76,.2);padding:7px 12px;background:transparent;cursor:pointer;text-decoration:none;transition:all .3s;}
+.pd-add:hover{background:#c9a84c;color:#0c0a06;}
+
+/* SCENT */
+.scent{padding:88px 44px;background:#0c0a06;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;}
+.whl{position:relative;width:320px;height:320px;margin:0 auto;}
+.wr{position:absolute;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);border:1px solid rgba(201,168,76,.1);}
+.wr:nth-child(1){width:288px;height:288px;animation:wspin 44s linear infinite;}
+.wr:nth-child(2){width:208px;height:208px;border-color:rgba(201,168,76,.07);animation:wspin 30s linear infinite reverse;}
+.wr:nth-child(3){width:124px;height:124px;border-color:rgba(201,168,76,.14);background:radial-gradient(ellipse,rgba(201,168,76,.06),transparent 70%);}
+@keyframes wspin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+.wc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:46px;animation:wfloat 5s ease-in-out infinite;filter:drop-shadow(0 0 24px rgba(201,168,76,.4));z-index:2;}
+@keyframes wfloat{0%,100%{transform:translate(-50%,-50%) translateY(0);}50%{transform:translate(-50%,-50%) translateY(-8px);}}
+.nt{position:absolute;font-family:'Cormorant Garamond',serif;font-size:10px;font-style:italic;color:#c9a84c;background:#0c0a06;border:1px solid rgba(201,168,76,.15);padding:3px 10px;white-space:nowrap;}
+.nt.t{top:2px;left:50%;transform:translateX(-50%);}
+.nt.r{top:50%;right:-5px;transform:translateY(-50%);}
+.nt.b{bottom:2px;left:50%;transform:translateX(-50%);}
+.nt.l{top:50%;left:-5px;transform:translateY(-50%);}
+.scent-copy p{font-size:13px;line-height:1.9;color:rgba(237,227,200,.42);margin-bottom:14px;}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;}
+.pill{font-family:'Cinzel',serif;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#c9a84c;border:1px solid rgba(201,168,76,.15);padding:6px 13px;background:rgba(201,168,76,.07);cursor:default;transition:all .3s;}
+.pill:hover{background:rgba(201,168,76,.16);border-color:#c9a84c;}
+
+/* STORY */
+.story{padding:88px 44px;background:#100e08;}
+.si{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.sv{position:relative;height:440px;background:radial-gradient(ellipse 55% 50% at 50% 50%,rgba(201,168,76,.09),transparent 65%),linear-gradient(148deg,#1a1408,#0c0a06);border:1px solid rgba(201,168,76,.13);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.sv::before{content:'';position:absolute;inset:22px;border:1px solid rgba(201,168,76,.05);}
+.sv::after{content:'';position:absolute;inset:44px;border:1px solid rgba(201,168,76,.025);}
+.sv-big{font-size:110px;opacity:.2;filter:drop-shadow(0 0 44px rgba(201,168,76,.2));animation:svf 7s ease-in-out infinite;position:relative;z-index:1;}
+@keyframes svf{0%,100%{transform:translateY(0);}50%{transform:translateY(-11px);}}
+.sv-cap{position:absolute;bottom:0;left:0;right:0;background:rgba(12,10,6,.88);border-top:1px solid rgba(201,168,76,.13);padding:12px 18px;font-family:'Cormorant Garamond',serif;font-size:11px;font-style:italic;color:rgba(237,227,200,.42);text-align:center;letter-spacing:.07em;}
+.sc p{font-size:13px;line-height:1.9;color:rgba(237,227,200,.42);margin-bottom:14px;}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(201,168,76,.13);margin-top:28px;}
+.sb{background:#0c0a06;padding:22px 16px;text-align:center;transition:background .3s;}
+.sb:hover{background:#15120a;}
+.sbn{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:#c9a84c;line-height:1;display:block;margin-bottom:5px;}
+.sbl{font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;color:rgba(237,227,200,.42);}
+
+/* PROCESS */
+.process{padding:88px 44px;background:#0c0a06;}
+.pgr{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(201,168,76,.13);margin-top:50px;}
+.step{background:#0c0a06;padding:36px 24px;transition:background .4s;}
+.step:hover{background:#15120a;}
+.step-n{font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:.2em;color:#c9a84c;opacity:.52;display:block;margin-bottom:16px;}
+.step-i{font-size:28px;display:block;margin-bottom:14px;}
+.step h3{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;color:#ede3c8;margin-bottom:8px;}
+.step p{font-size:12px;line-height:1.75;color:rgba(237,227,200,.42);}
+
+/* TESTI */
+.testi{padding:88px 44px;background:#100e08;text-align:center;}
+.ti{max-width:580px;margin:0 auto;}
+.qm{font-family:'Cormorant Garamond',serif;font-size:110px;color:rgba(201,168,76,.09);line-height:.5;display:block;margin-bottom:24px;}
+#ttext{font-family:'Cormorant Garamond',serif;font-size:clamp(16px,2.4vw,26px);font-weight:300;font-style:italic;color:#ede3c8;line-height:1.5;margin-bottom:24px;transition:opacity .35s;}
+#tauth{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:#c9a84c;transition:opacity .35s;}
+.tds{display:flex;gap:8px;justify-content:center;margin-top:32px;}
+.td{width:6px;height:6px;border-radius:50%;background:rgba(201,168,76,.15);border:1px solid #c9a84c;cursor:pointer;transition:background .3s;}
+.td.on{background:#c9a84c;}
+
+/* CTA */
+.cta{padding:120px 44px;text-align:center;position:relative;background:#0c0a06;}
+.cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 65% 65% at 50% 50%,rgba(201,168,76,.06),transparent 70%);}
+.ci{position:relative;max-width:520px;margin:0 auto;}
+.ci h2{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,5.5vw,62px);font-weight:300;line-height:1.05;color:#ede3c8;margin-bottom:14px;}
+.ci h2 em{font-style:italic;color:#c9a84c;display:block;}
+.ci p{font-size:13px;line-height:1.8;color:rgba(237,227,200,.42);margin-bottom:38px;}
+.er{display:flex;border:1px solid rgba(201,168,76,.15);margin:0 auto 14px;transition:border-color .3s;}
+.er:focus-within{border-color:rgba(201,168,76,.5);}
+.ei{flex:1;background:transparent;border:none;outline:none;padding:13px 18px;font-family:'Jost',sans-serif;font-size:12.5px;font-weight:300;color:#ede3c8;}
+.ei::placeholder{color:rgba(237,227,200,.32);}
+.es{font-family:'Cinzel',serif;font-size:9px;letter-spacing:.16em;text-transform:uppercase;background:#c9a84c;color:#0c0a06;border:none;padding:13px 22px;cursor:pointer;transition:background .3s;}
+.es:hover{background:#e8c96e;}
+.cn{font-size:10px;color:rgba(237,227,200,.35);letter-spacing:.08em;}
+
+/* FOOTER */
+.footer{padding:52px 44px 36px;background:#0a0804;border-top:1px solid rgba(201,168,76,.11);}
+.ft{display:grid;grid-template-columns:1.8fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px;}
+.fl{font-family:'Cinzel',serif;font-size:14px;letter-spacing:.32em;color:#c9a84c;text-transform:uppercase;display:block;margin-bottom:12px;}
+.fb p{font-size:12px;line-height:1.9;color:rgba(237,227,200,.4);max-width:210px;}
+.fc h4{font-family:'Cinzel',serif;font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:#c9a84c;margin-bottom:16px;opacity:.62;}
+.fc ul{list-style:none;}.fc li{margin-bottom:8px;}
+.fc a{font-size:12px;color:rgba(237,227,200,.4);text-decoration:none;transition:color .3s;}
+.fc a:hover{color:#c9a84c;}
+.fb2{padding-top:20px;border-top:1px solid rgba(201,168,76,.11);display:flex;align-items:center;justify-content:space-between;}
+.fc2{font-size:10px;color:rgba(237,227,200,.3);letter-spacing:.06em;}
+.fsoc{display:flex;gap:20px;}
+.fsoc a{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:rgba(237,227,200,.3);text-decoration:none;transition:color .3s;}
+.fsoc a:hover{color:#c9a84c;}
+
+/* ─────────────────────────────────────
+   WIREFRAME STYLES
+   Same section heights/padding as landing
+   Content replaced with grey boxes
+───────────────────────────────────── */
+#wire-content{
+  background:#f0ede8;
+  color:#888;
+  font-family:'Jost',sans-serif;
+  min-height:100vh;
+  padding-top:34px;
+}
+
+/* WF nav */
+.wnav{
+  height:68px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 44px;
+  border-bottom:1px dashed #c4bfb6;
+  background:#e8e4de;
+  position:sticky;top:0;z-index:50;
+}
+.wb{height:8px;background:#d8d4cc;border-radius:2px;}
+.wb.g{background:rgba(201,168,76,.38);}
+.wb.sm{height:5px;}.wb.lg{height:13px;}
+.wbtn-s{background:rgba(201,168,76,.35);border:1px dashed rgba(201,168,76,.55);border-radius:2px;}
+.wghost-s{background:transparent;border:2px dashed #c4bfb6;border-radius:2px;}
+
+/* WF section wrapper — same padding as landing */
+.wsec{position:relative;}
+.wtag{
+  display:inline-block;
+  background:#c0392b;color:#fff;
+  font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;
+  padding:2px 8px;margin-bottom:12px;
+  position:absolute;top:12px;left:12px;z-index:2;
+}
+.wnote{
+  position:absolute;bottom:10px;right:14px;
+  font-size:8px;font-style:italic;color:#c0392b;letter-spacing:.04em;
+}
+
+/* WF hero: same height as landing hero */
+.whero{
+  position:relative;
+  height:calc(100vh - 102px);
+  background:linear-gradient(135deg,#eae6e0,#d8d4cc);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+  overflow:hidden;
+}
+/* fake rings */
+.whero::before{content:'';position:absolute;width:220px;height:220px;border-radius:50%;border:1px dashed #c4bfb6;top:50%;left:50%;transform:translate(-50%,-50%);}
+.whero::after{content:'';position:absolute;width:380px;height:380px;border-radius:50%;border:1px dashed #c4bfb6;opacity:.5;top:50%;left:50%;transform:translate(-50%,-50%);}
+/* fake bottle outline on right */
+.wbottle-ph{
+  position:absolute;right:5%;top:50%;transform:translateY(-50%);
+  width:72px;height:170px;
+  background:linear-gradient(to bottom,rgba(201,168,76,.32),rgba(201,168,76,.14));
+  border:1px dashed rgba(201,168,76,.5);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:#bbb;writing-mode:vertical-rl;
+}
+/* wf marquee strip */
+.wmq{
+  height:38px;
+  border-top:1px dashed #c4bfb6;border-bottom:1px dashed #c4bfb6;
+  background:#e8e4de;
+  display:flex;align-items:center;padding:0 18px;gap:10px;overflow:hidden;
+  position:relative;
+}
+/* WF pillars: same padding */
+.wpillars{padding:88px 44px;background:#f0ede8;position:relative;}
+.wpg3{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:44px;}
+.wpc{background:#eae6e0;border:1px dashed #c4bfb6;padding:38px 28px;}
+/* WF collection */
+.wcollec{padding:88px 44px;background:#e8e4de;position:relative;}
+.wppg{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:auto auto;gap:2px;margin-top:40px;}
+.wpd{background:#eae6e0;border:1px dashed #c4bfb6;}
+.wpd.big{grid-row:span 2;}
+.wpd-v{background:#e0dcd4;display:flex;align-items:center;justify-content:center;}
+.wpd.big .wpd-v{height:360px;}
+.wpd:not(.big) .wpd-v{height:164px;}
+/* WF scent: same padding + 2-col */
+.wscent{padding:88px 44px;background:#f0ede8;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;position:relative;}
+/* WF story */
+.wstory{padding:88px 44px;background:#e8e4de;position:relative;}
+.wsi{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.wsv{height:440px;background:#dedad2;border:1px dashed #c4bfb6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;position:relative;}
+/* WF process */
+.wprocess{padding:88px 44px;background:#f0ede8;position:relative;}
+.wpgr{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:50px;}
+.wstep{background:#eae6e0;border:1px dashed #c4bfb6;padding:36px 24px;}
+/* WF testi */
+.wtesti{padding:88px 44px;background:#e8e4de;text-align:center;position:relative;}
+/* WF CTA */
+.wcta{padding:120px 44px;background:#f0ede8;text-align:center;position:relative;}
+/* WF footer */
+.wfooter{padding:52px 44px 36px;background:#dedad2;border-top:1px dashed #c4bfb6;position:relative;}
+.wft{display:grid;grid-template-columns:1.8fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px;}
+</style>
+</head>
+<body>
+
+<!-- ── LABELS ── -->
+<div id="lbl-land">← Landing Page</div>
+<div id="lbl-wire">Wireframe →</div>
+
+<!-- ── SLIDER ── -->
+<div id="slider">
+  <div id="sl-track"></div>
+  <div id="sl-btn">⇔</div>
+</div>
+
+<!-- ── SPLIT WRAP ── -->
+<div id="wrap">
+
+  <!-- ══════════ LEFT: LANDING PAGE ══════════ -->
+  <div class="pane" id="pane-land">
+  <div id="land-content">
+    <canvas id="ptcl"></canvas>
+
+    <nav class="lnav">
+      <a href="javascript:void(0)" class="logo-wrap">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <circle cx="15" cy="15" r="13.5" stroke="#c9a84c" stroke-width=".6" opacity=".4"/>
+          <path d="M19 8C14.5 8.7 10.5 11.8 10.5 15.2C10.5 18.6 13.8 21.6 18.5 21.9C13.2 22.4 7.5 18.5 7.5 15.2C7.5 11.9 12.8 7.5 19 8Z" fill="#c9a84c"/>
+          <polygon points="15,5.2 15.4,6.6 16.9,6.6 15.7,7.5 16.1,8.9 15,8 13.9,8.9 14.3,7.5 13.1,6.6 14.6,6.6" fill="#c9a84c" opacity=".8"/>
+          <circle cx="18.5" cy="15.2" r="1.1" fill="#e8c96e" opacity=".5"/>
+        </svg>
+        <span><span class="logo-main">Oud Legacy</span><span class="logo-sub">Est. 2025 · Old Delhi</span></span>
+      </a>
+      <ul class="lnav-links">
+        <li><a href="javascript:void(0)">Collection</a></li><li><a href="javascript:void(0)">Heritage</a></li>
+        <li><a href="javascript:void(0)">Craft</a></li><li><a href="javascript:void(0)">Exclusive</a></li>
+      </ul>
+      <a href="javascript:void(0)" class="lnav-cta">Shop Now</a>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;">
+        <div class="hring"></div><div class="hring"></div><div class="hring"></div>
+      </div>
+      <div class="hero-content">
+        <p class="h-eye"><i></i>Est. 2025 · Old Delhi<i></i></p>
+        <h1 class="h-h1">Oud<em>Legacy</em></h1>
+        <p class="h-tag">Where ancient ritual meets modern desire</p>
+        <div class="h-btns"><a href="javascript:void(0)" class="btn-g">Explore</a><a href="javascript:void(0)" class="btn-o">Our Story</a></div>
+      </div>
+      <div class="h-bottle">
+        <svg width="185" height="335" viewBox="0 0 185 335" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:bottleFloat 6s ease-in-out infinite;display:block;">
+  <defs>
+    <linearGradient id="phbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1508"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <linearGradient id="phglow" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.0"/>
+      <stop offset="60%" stop-color="#c9a84c" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="phspot" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="phblur">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- outer frame -->
+  <rect x="1" y="1" width="183" height="333" rx="3" fill="url(#phbg)" stroke="#c9a84c" stroke-opacity="0.2" stroke-width="1"/>
+
+  <!-- corner marks — top left -->
+  <line x1="1" y1="18" x2="1" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <line x1="1" y1="1" x2="18" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <!-- top right -->
+  <line x1="167" y1="1" x2="184" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <line x1="184" y1="1" x2="184" y2="18" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <!-- bottom left -->
+  <line x1="1" y1="315" x2="1" y2="332" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <line x1="1" y1="332" x2="18" y2="332" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <!-- bottom right -->
+  <line x1="167" y1="332" x2="184" y2="332" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+  <line x1="184" y1="315" x2="184" y2="332" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.5"/>
+
+  <!-- atmospheric spotlight -->
+  <rect x="1" y="1" width="183" height="333" rx="3" fill="url(#phspot)"/>
+  <rect x="1" y="1" width="183" height="333" rx="3" fill="url(#phglow)"/>
+
+  <!-- bottle silhouette — suggestive outline only -->
+  <!-- cap -->
+  <rect x="80" y="48" width="25" height="18" rx="4" fill="none" stroke="#c9a84c" stroke-opacity="0.25" stroke-width="1"/>
+  <!-- neck -->
+  <path d="M83 66 L80 92 L105 92 L102 66 Z" fill="none" stroke="#c9a84c" stroke-opacity="0.18" stroke-width="1"/>
+  <!-- shoulder ring -->
+  <rect x="77" y="90" width="31" height="5" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1"/>
+  <!-- body outline -->
+  <path d="M63 95 Q55 110 53 130 L52 250 Q52 272 92 272 Q132 272 133 250 L132 130 Q130 110 122 95 Z" 
+        fill="none" stroke="#c9a84c" stroke-opacity="0.2" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <!-- label suggestion -->
+  <rect x="64" y="138" width="57" height="80" rx="1" fill="none" stroke="#c9a84c" stroke-opacity="0.15" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- bottom glow -->
+  <ellipse cx="92" cy="285" rx="52" ry="12" fill="#c9a84c" fill-opacity="0.12" filter="url(#phblur)"/>
+
+  <!-- centre icon -->
+  <g transform="translate(92, 175)">
+    <!-- camera icon -->
+    <rect x="-18" y="-13" width="36" height="26" rx="3" fill="none" stroke="#c9a84c" stroke-opacity="0.4" stroke-width="1.2"/>
+    <circle cx="0" cy="0" r="7" fill="none" stroke="#c9a84c" stroke-opacity="0.4" stroke-width="1.2"/>
+    <circle cx="0" cy="0" r="3" fill="#c9a84c" fill-opacity="0.25"/>
+    <rect x="-4" y="-17" width="8" height="5" rx="1" fill="none" stroke="#c9a84c" stroke-opacity="0.35" stroke-width="1"/>
+  </g>
+
+  <!-- label text area -->
+  <rect x="42" y="296" width="101" height="24" rx="2" fill="#c9a84c" fill-opacity="0.06" stroke="#c9a84c" stroke-opacity="0.18" stroke-width="1"/>
+  <!-- "PRODUCT PHOTO" text bars -->
+  <rect x="58" y="304" width="69" height="2" rx="1" fill="#c9a84c" fill-opacity="0.45"/>
+  <rect x="66" y="309" width="53" height="1.5" rx="1" fill="#c9a84c" fill-opacity="0.28"/>
+</svg>
+      </div>
+    </section>
+
+    <div class="mq"><div class="mq-t">
+      <span class="mq-i">Pure Oud</span><span class="mq-i">Master Craft</span><span class="mq-i">Royal Heritage</span>
+      <span class="mq-i">Old Delhi</span><span class="mq-i">No Synthetics</span><span class="mq-i">6 Weeks Maceration</span>
+      <span class="mq-i">Hand Bottled</span><span class="mq-i">Est. 2025</span>
+      <span class="mq-i">Pure Oud</span><span class="mq-i">Master Craft</span><span class="mq-i">Royal Heritage</span>
+      <span class="mq-i">Old Delhi</span><span class="mq-i">No Synthetics</span><span class="mq-i">6 Weeks Maceration</span>
+      <span class="mq-i">Hand Bottled</span><span class="mq-i">Est. 2025</span>
+    </div></div>
+
+    <section class="pillars">
+      <div class="rv"><div class="slb">Why Oud Legacy</div><h2 class="sh2">Three <em>promises</em> we keep</h2></div>
+      <div class="pg3 rv d1">
+        <div class="pc"><span class="pc-n">01</span><span class="pc-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igp1" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#50aa78" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#50aa78" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igp1)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#50aa78" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#50aa78" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#50aa78" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#50aa78" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#50aa78" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#50aa78" fill-opacity="0.4"/>
+</svg></span><h3>Pure Oud Only</h3><p>Sourced from century-old agarwood trees. Zero synthetic substitutes — ever.</p></div>
+        <div class="pc"><span class="pc-n">02</span><span class="pc-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igp2" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igp2)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#c9a84c" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#c9a84c" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#c9a84c" fill-opacity="0.4"/>
+</svg></span><h3>Master Craft</h3><p>Each fragrance macerates minimum 6 weeks. Patience is a requirement.</p></div>
+        <div class="pc"><span class="pc-n">03</span><span class="pc-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igp3" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igp3)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#c9a84c" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#c9a84c" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#c9a84c" fill-opacity="0.4"/>
+</svg></span><h3>Royal Heritage</h3><p>Inspired by 400 years of ittar tradition from Chandni Chowk, Old Delhi.</p></div>
+      </div>
+    </section>
+
+    <section class="collec">
+      <div class="col-hd rv"><div><div class="slb">Our Perfumes</div><h2 class="sh2">The <em>Signature</em> Collection</h2></div><a href="javascript:void(0)" class="btn-o" style="flex-shrink:0;">View All →</a></div>
+      <div class="ppg rv d1">
+        <div class="pd big">
+          <div class="pd-v"><span class="pd-badge b">Bestseller</span>
+            <svg width="88" height="164" viewBox="0 0 88 164" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <linearGradient id="mpbgroyal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181208"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <radialGradient id="mpsproyal" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="86" height="162" rx="2" fill="url(#mpbgroyal)"/>
+  <rect x="1" y="1" width="86" height="162" rx="2" fill="url(#mpsproyal)"/>
+  <!-- corners -->
+  <line x1="1" y1="10" x2="1" y2="1" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="1" x2="10" y2="1" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="78" y1="1" x2="87" y2="1" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="87" y1="1" x2="87" y2="10" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="154" x2="1" y2="163" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="163" x2="10" y2="163" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="78" y1="163" x2="87" y2="163" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="87" y1="154" x2="87" y2="163" stroke="#c9a84c" stroke-opacity="0.5" stroke-width="1.2"/>
+  <!-- bottle silhouette -->
+  <path d="M36 32 L34 41 L30 54 L30 132 Q30 144 44 144 Q58 144 58 132 L58 54 L54 41 L52 32 Z"
+        fill="none" stroke="#c9a84c" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- camera dot -->
+  <circle cx="44" cy="82" r="5" fill="none" stroke="#c9a84c" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="44" cy="82" r="2" fill="#c9a84c" fill-opacity="0.2"/>
+  <!-- glow base -->
+  <ellipse cx="44" cy="146" rx="29" ry="4" fill="#c9a84c" fill-opacity="0.1"/>
+</svg>
+          </div>
+          <div class="pd-i"><p class="pd-br">Signature</p><h3 class="pd-nm">Royal Oud Noir</h3><p class="pd-ds">Smoky agarwood, Persian saffron, aged amber. Enters the room before you do.</p><div class="pd-ft"><div class="pd-pr">₹3,499 <small>/ 30ml</small></div><a href="javascript:void(0)" class="pd-add">Add to Cart</a></div></div>
+        </div>
+        <div class="pd"><div class="pd-v"><svg width="64" height="120" viewBox="0 0 64 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <linearGradient id="mpbgrose" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181208"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <radialGradient id="mpsprose" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#c98070" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#c98070" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpbgrose)"/>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpsprose)"/>
+  <!-- corners -->
+  <line x1="1" y1="10" x2="1" y2="1" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="1" x2="10" y2="1" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="1" x2="63" y2="1" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="1" x2="63" y2="10" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="110" x2="1" y2="119" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="119" x2="10" y2="119" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="119" x2="63" y2="119" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="110" x2="63" y2="119" stroke="#c98070" stroke-opacity="0.5" stroke-width="1.2"/>
+  <!-- bottle silhouette -->
+  <path d="M24 24 L22 30 L18 40 L18 96 Q18 105 32 105 Q46 105 46 96 L46 40 L42 30 L40 24 Z"
+        fill="none" stroke="#c98070" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- camera dot -->
+  <circle cx="32" cy="60" r="5" fill="none" stroke="#c98070" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="32" cy="60" r="2" fill="#c98070" fill-opacity="0.2"/>
+  <!-- glow base -->
+  <ellipse cx="32" cy="107" rx="21" ry="4" fill="#c98070" fill-opacity="0.1"/>
+</svg></div><div class="pd-i"><p class="pd-br">Floral</p><h3 class="pd-nm">Rose Oud</h3><p class="pd-ds">Taif rose meets Cambodian oud. Feminine yet commanding — worn by royalty for centuries.</p><div class="pd-ft"><div class="pd-pr">₹2,799</div><a href="javascript:void(0)" class="pd-add">Add</a></div></div></div>
+        <div class="pd"><div class="pd-v"><span class="pd-badge n">New</span><svg width="64" height="120" viewBox="0 0 64 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <linearGradient id="mpbgmidnight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181208"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <radialGradient id="mpspmidnight" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#6464c8" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#6464c8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpbgmidnight)"/>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpspmidnight)"/>
+  <!-- corners -->
+  <line x1="1" y1="10" x2="1" y2="1" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="1" x2="10" y2="1" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="1" x2="63" y2="1" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="1" x2="63" y2="10" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="110" x2="1" y2="119" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="119" x2="10" y2="119" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="119" x2="63" y2="119" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="110" x2="63" y2="119" stroke="#6464c8" stroke-opacity="0.5" stroke-width="1.2"/>
+  <!-- bottle silhouette -->
+  <path d="M24 24 L22 30 L18 40 L18 96 Q18 105 32 105 Q46 105 46 96 L46 40 L42 30 L40 24 Z"
+        fill="none" stroke="#6464c8" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- camera dot -->
+  <circle cx="32" cy="60" r="5" fill="none" stroke="#6464c8" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="32" cy="60" r="2" fill="#6464c8" fill-opacity="0.2"/>
+  <!-- glow base -->
+  <ellipse cx="32" cy="107" rx="21" ry="4" fill="#6464c8" fill-opacity="0.1"/>
+</svg></div><div class="pd-i"><p class="pd-br">Night</p><h3 class="pd-nm">Midnight Oud</h3><p class="pd-ds">Deep musk, sacred incense, rare Indian oud. Crafted for the night, remembered at dawn.</p><div class="pd-ft"><div class="pd-pr">₹3,199</div><a href="javascript:void(0)" class="pd-add">Add</a></div></div></div>
+        <div class="pd"><div class="pd-v"><svg width="64" height="120" viewBox="0 0 64 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <linearGradient id="mpbgdesert" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181208"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <radialGradient id="mpspdesert" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#b48830" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#b48830" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpbgdesert)"/>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpspdesert)"/>
+  <!-- corners -->
+  <line x1="1" y1="10" x2="1" y2="1" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="1" x2="10" y2="1" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="1" x2="63" y2="1" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="1" x2="63" y2="10" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="110" x2="1" y2="119" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="119" x2="10" y2="119" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="119" x2="63" y2="119" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="110" x2="63" y2="119" stroke="#b48830" stroke-opacity="0.5" stroke-width="1.2"/>
+  <!-- bottle silhouette -->
+  <path d="M24 24 L22 30 L18 40 L18 96 Q18 105 32 105 Q46 105 46 96 L46 40 L42 30 L40 24 Z"
+        fill="none" stroke="#b48830" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- camera dot -->
+  <circle cx="32" cy="60" r="5" fill="none" stroke="#b48830" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="32" cy="60" r="2" fill="#b48830" fill-opacity="0.2"/>
+  <!-- glow base -->
+  <ellipse cx="32" cy="107" rx="21" ry="4" fill="#b48830" fill-opacity="0.1"/>
+</svg></div><div class="pd-i"><p class="pd-br">Woody</p><h3 class="pd-nm">Desert Oud</h3><p class="pd-ds">Aged sandalwood, raw vetiver, and Indian oud. The scent of silence and open desert air.</p><div class="pd-ft"><div class="pd-pr">₹2,499</div><a href="javascript:void(0)" class="pd-add">Add</a></div></div></div>
+        <div class="pd"><div class="pd-v"><svg width="64" height="120" viewBox="0 0 64 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <linearGradient id="mpbglotus" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181208"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+    <radialGradient id="mpsplotus" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#50aa78" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#50aa78" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpbglotus)"/>
+  <rect x="1" y="1" width="62" height="118" rx="2" fill="url(#mpsplotus)"/>
+  <!-- corners -->
+  <line x1="1" y1="10" x2="1" y2="1" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="1" x2="10" y2="1" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="1" x2="63" y2="1" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="1" x2="63" y2="10" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="110" x2="1" y2="119" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="1" y1="119" x2="10" y2="119" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="54" y1="119" x2="63" y2="119" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <line x1="63" y1="110" x2="63" y2="119" stroke="#50aa78" stroke-opacity="0.5" stroke-width="1.2"/>
+  <!-- bottle silhouette -->
+  <path d="M24 24 L22 30 L18 40 L18 96 Q18 105 32 105 Q46 105 46 96 L46 40 L42 30 L40 24 Z"
+        fill="none" stroke="#50aa78" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- camera dot -->
+  <circle cx="32" cy="60" r="5" fill="none" stroke="#50aa78" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="32" cy="60" r="2" fill="#50aa78" fill-opacity="0.2"/>
+  <!-- glow base -->
+  <ellipse cx="32" cy="107" rx="21" ry="4" fill="#50aa78" fill-opacity="0.1"/>
+</svg></div><div class="pd-i"><p class="pd-br">Floral</p><h3 class="pd-nm">Lotus Oud</h3><p class="pd-ds">White lotus, fresh neroli, and aged oud. Light enough to wear, strong enough to linger.</p><div class="pd-ft"><div class="pd-pr">₹2,999</div><a href="javascript:void(0)" class="pd-add">Add</a></div></div></div>
+      </div>
+    </section>
+
+    <section class="scent">
+      <div class="whl rv"><div class="wr"></div><div class="wr"></div><div class="wr"></div><div class="wc"><svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igwh" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="50" height="50" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="50" height="50" rx="3" fill="url(#igwh)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="48" height="48" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="40" y1="2" x2="50" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="50" y1="2" x2="50" y2="12" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="40" x2="2" y2="50" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="50" x2="12" y2="50" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="40" y1="50" x2="50" y2="50" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="50" y1="40" x2="50" y2="50" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="16" y1="16" x2="36" y2="36" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="36" y1="16" x2="16" y2="36" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="26" cy="26" r="11" fill="none" stroke="#c9a84c" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="8" y="38" width="36" height="8" rx="1" fill="#c9a84c" fill-opacity="0.1"/>
+  <rect x="12" y="40" width="28" height="2" rx="1" fill="#c9a84c" fill-opacity="0.4"/>
+</svg></div><span class="nt t">Saffron</span><span class="nt r">Agarwood</span><span class="nt b">Amber</span><span class="nt l">Rose</span></div>
+      <div class="scent-copy rv d2"><div class="slb">The Anatomy</div><h2 class="sh2">A fragrance in <em>three acts</em></h2><p>Opening that intrigues, heart that captivates, base that refuses to be forgotten.</p><p>Master perfumer. Only documented provenance raw materials.</p><div class="pills"><span class="pill">Top Notes</span><span class="pill">Heart Notes</span><span class="pill">Base Notes</span><span class="pill">6wk Maceration</span></div></div>
+    </section>
+
+    <section class="story">
+      <div class="si">
+        <div class="sv rv"><span class="sv-big" style="font-size:0;position:absolute;inset:0;"><svg width="500" height="440" viewBox="0 0 500 440" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%;position:absolute;inset:0;">
+  <defs>
+    <radialGradient id="wgsv" cx="50%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wgbsv" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1408"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="500" height="440" fill="url(#wgbsv)"/>
+  <rect x="0" y="0" width="500" height="440" fill="url(#wgsv)"/>
+  <!-- dashed inner frame -->
+  <rect x="16" y="16" width="468" height="408" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.18" stroke-width="1" stroke-dasharray="5 4"/>
+  <!-- corner marks -->
+  <line x1="1" y1="22" x2="1" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="1" y1="1" x2="22" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="478" y1="1" x2="499" y2="1" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="499" y1="1" x2="499" y2="22" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="1" y1="418" x2="1" y2="439" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="1" y1="439" x2="22" y2="439" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="478" y1="439" x2="499" y2="439" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <line x1="499" y1="418" x2="499" y2="439" stroke="#c9a84c" stroke-opacity="0.55" stroke-width="1.8"/>
+  <!-- camera icon centre -->
+  <rect x="228" y="204" width="44" height="32" rx="4" fill="none" stroke="#c9a84c" stroke-opacity="0.35" stroke-width="1.2"/>
+  <circle cx="250" cy="220" r="9" fill="none" stroke="#c9a84c" stroke-opacity="0.35" stroke-width="1.2"/>
+  <circle cx="250" cy="220" r="3.5" fill="#c9a84c" fill-opacity="0.2"/>
+  <rect x="245" y="200" width="10" height="6" rx="1.5" fill="none" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1"/>
+  <!-- label -->
+  <rect x="210" y="402" width="80" height="22" rx="2" fill="#c9a84c" fill-opacity="0.07" stroke="#c9a84c" stroke-opacity="0.2" stroke-width="1"/>
+  <rect x="222" y="410" width="56" height="2" rx="1" fill="#c9a84c" fill-opacity="0.4"/>
+  <rect x="232" y="416" width="36" height="1.5" rx="1" fill="#c9a84c" fill-opacity="0.22"/>
+  <!-- bottom glow -->
+  <ellipse cx="250" cy="436" rx="166" ry="8" fill="#c9a84c" fill-opacity="0.08"/>
+</svg></span><div class="sv-cap">Gali Sifar, Chandni Chowk — 400 years of perfumery</div></div>
+        <div class="sc rv d2"><div class="slb">Our Heritage</div><h2 class="sh2">Born in <em>Old Delhi</em></h2><p>From a small atelier in Chandni Chowk — a street that has traded perfume for over 400 years.</p><p>Our founders grew up surrounded by dhoop, ittar, and the language of scent.</p><div class="stats"><div class="sb"><span class="sbn">400+</span><span class="sbl">Years tradition</span></div><div class="sb"><span class="sbn">12</span><span class="sbl">Ingredients</span></div><div class="sb"><span class="sbn">6wk</span><span class="sbl">Maceration</span></div><div class="sb"><span class="sbn">0%</span><span class="sbl">Synthetic</span></div></div></div>
+      </div>
+    </section>
+
+    <section class="process">
+      <div class="rv" style="text-align:center;max-width:400px;margin:0 auto;"><div class="slb" style="justify-content:center;">The Craft</div><h2 class="sh2">Source <em>to skin</em></h2></div>
+      <div class="pgr rv d1">
+        <div class="step"><span class="step-n">Step 01</span><span class="step-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igs1" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#50aa78" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#50aa78" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igs1)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#50aa78" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#50aa78" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#50aa78" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#50aa78" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#50aa78" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#50aa78" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#50aa78" fill-opacity="0.4"/>
+</svg></span><h3>Source</h3><p>Certified agarwood plantations. Every tree documented.</p></div>
+        <div class="step"><span class="step-n">Step 02</span><span class="step-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igs2" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c06030" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#c06030" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igs2)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#c06030" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#c06030" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#c06030" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#c06030" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#c06030" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#c06030" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#c06030" fill-opacity="0.4"/>
+</svg></span><h3>Distil</h3><p>Hydro-distillation 24–72 hrs. Low heat. No shortcuts.</p></div>
+        <div class="step"><span class="step-n">Step 03</span><span class="step-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igs3" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igs3)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#c9a84c" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#c9a84c" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#c9a84c" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#c9a84c" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#c9a84c" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#c9a84c" fill-opacity="0.4"/>
+</svg></span><h3>Compose</h3><p>Master blending. 6 weeks maceration before approval.</p></div>
+        <div class="step"><span class="step-n">Step 04</span><span class="step-i"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+  <defs>
+    <radialGradient id="igs4" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#8090a0" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#8090a0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- bg -->
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="#13100a"/>
+  <rect x="1" y="1" width="38" height="38" rx="3" fill="url(#igs4)"/>
+  <!-- dashed border -->
+  <rect x="2" y="2" width="36" height="36" rx="2" fill="none" stroke="#8090a0" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- corner marks -->
+  <line x1="2" y1="12" x2="2" y2="2" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="2" x2="12" y2="2" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="2" x2="38" y2="2" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="2" x2="38" y2="12" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="28" x2="2" y2="38" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="2" y1="38" x2="12" y2="38" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="28" y1="38" x2="38" y2="38" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <line x1="38" y1="28" x2="38" y2="38" stroke="#8090a0" stroke-opacity="0.6" stroke-width="1.5"/>
+  <!-- image placeholder cross -->
+  <line x1="10" y1="10" x2="30" y2="30" stroke="#8090a0" stroke-opacity="0.3" stroke-width="1.2"/>
+  <line x1="30" y1="10" x2="10" y2="30" stroke="#8090a0" stroke-opacity="0.3" stroke-width="1.2"/>
+  <circle cx="20" cy="20" r="11" fill="none" stroke="#8090a0" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- label -->
+  <rect x="2" y="26" width="36" height="8" rx="1" fill="#8090a0" fill-opacity="0.1"/>
+  <rect x="6" y="28" width="28" height="2" rx="1" fill="#8090a0" fill-opacity="0.4"/>
+</svg></span><h3>Bottle</h3><p>Hand-filled, hand-blown glass. Numbered individually.</p></div>
+      </div>
+    </section>
+
+    <section class="testi">
+      <div class="ti rv"><span class="qm">"</span><p id="ttext">Nothing comes close to Royal Oud Noir. This is what oud is supposed to smell like.</p><p id="tauth">— Arjun Mehta · Mumbai · Verified</p><div class="tds"><div class="td on" onclick="setT(0)"></div><div class="td" onclick="setT(1)"></div><div class="td" onclick="setT(2)"></div></div></div>
+    </section>
+
+    <section class="cta">
+      <div class="ci rv"><div class="slb" style="justify-content:center;margin-bottom:16px;">Exclusive Access</div><h2>Be <em>First to</em> the Legacy</h2><p>Early access to limited editions, private blending sessions, complimentary samples.</p><div class="er"><input type="email" class="ei" placeholder="Your email address"><button class="es">Join Now</button></div><p class="cn">No spam. Only rare drops.</p></div>
+    </section>
+
+    <footer class="footer">
+      <div class="ft">
+        <div class="fb"><span class="fl">Oud Legacy</span><p>Ancient craft. Modern luxury. 400 years of perfumery from Old Delhi.</p></div>
+        <div class="fc"><h4>Collection</h4><ul><li><a href="javascript:void(0)">Royal Oud Noir</a></li><li><a href="javascript:void(0)">Rose Oud</a></li><li><a href="javascript:void(0)">Midnight Oud</a></li><li><a href="javascript:void(0)">Desert Oud</a></li><li><a href="javascript:void(0)">Gift Sets</a></li></ul></div>
+        <div class="fc"><h4>Company</h4><ul><li><a href="javascript:void(0)">Our Story</a></li><li><a href="javascript:void(0)">The Craft</a></li><li><a href="javascript:void(0)">Press</a></li></ul></div>
+        <div class="fc"><h4>Support</h4><ul><li><a href="javascript:void(0)">Track Order</a></li><li><a href="javascript:void(0)">Returns</a></li><li><a href="javascript:void(0)">Contact</a></li></ul></div>
+      </div>
+      <div class="fb2"><p class="fc2">© 2025 Oud Legacy. All rights reserved.</p><div class="fsoc"><a href="javascript:void(0)">Instagram</a><a href="javascript:void(0)">WhatsApp</a><a href="javascript:void(0)">YouTube</a></div></div>
+    </footer>
+
+  </div><!-- /land-content -->
+  </div><!-- /pane-land -->
+
+
+  <!-- ══════════ RIGHT: WIREFRAME ══════════ -->
+  <div class="pane" id="pane-wire">
+  <div id="wire-content">
+
+    <!-- WF Nav — same height 68px -->
+    <div class="wnav">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,.36);border:1px dashed rgba(201,168,76,.5);"></div>
+        <div><div class="wb g" style="width:72px;margin-bottom:3px;"></div><div class="wb sm" style="width:52px;"></div></div>
+      </div>
+      <div style="display:flex;gap:14px;">
+        <div class="wb" style="width:40px;"></div><div class="wb" style="width:40px;"></div>
+        <div class="wb" style="width:40px;"></div><div class="wb" style="width:40px;"></div>
+      </div>
+      <div class="wbtn-s" style="width:74px;height:30px;"></div>
+    </div>
+
+    <!-- WF Hero — same height calc(100vh - 102px) -->
+    <div class="whero wsec">
+      <div class="wtag">02 — Hero · Full Viewport</div>
+      <div class="wbottle-ph">SVG Bottle</div>
+      <!-- eyebrow bar -->
+      <div class="wb g" style="width:130px;height:7px;margin-bottom:4px;"></div>
+      <!-- H1 bars -->
+      <div class="wb" style="width:190px;height:52px;background:rgba(201,168,76,.26);border-radius:3px;margin-bottom:6px;"></div>
+      <div class="wb" style="width:150px;height:40px;background:rgba(201,168,76,.2);border-radius:3px;margin-bottom:16px;"></div>
+      <!-- tagline -->
+      <div class="wb" style="width:200px;height:9px;margin-bottom:28px;"></div>
+      <!-- buttons -->
+      <div style="display:flex;gap:10px;">
+        <div class="wbtn-s" style="width:100px;height:38px;"></div>
+        <div class="wghost-s" style="width:100px;height:38px;"></div>
+      </div>
+      <div class="wnote">Animated rings · SVG bottle · particles · scroll cue</div>
+    </div>
+
+    <!-- WF Marquee — same height -->
+    <div class="wmq wsec" style="position:relative;"><div class="wtag" style="position:relative;top:auto;left:auto;display:inline-block;">03 — Marquee · Infinite Scroll</div>
+      <div class="wtag" style="position:relative;top:auto;left:auto;display:inline-block;margin-right:10px;">03 — Marquee</div>
+      <div class="wb g" style="width:64px;margin-right:8px;display:inline-block;height:7px;"></div>
+      <div class="wb g" style="width:80px;margin-right:8px;display:inline-block;height:7px;"></div>
+      <div class="wb g" style="width:58px;display:inline-block;height:7px;"></div>
+      <span style="font-size:7px;font-style:italic;color:#c0392b;margin-left:auto;">Infinite scroll →</span>
+    </div>
+
+    <!-- WF Pillars — same padding 88px 44px -->
+    <div class="wpillars wsec">
+      <div class="wtag">04 — Brand Pillars · 3-col</div>
+      <!-- label + h2 bars -->
+      <div class="wb g" style="width:110px;margin-bottom:8px;"></div>
+      <div class="wb lg" style="width:200px;margin-bottom:44px;"></div>
+      <div class="wpg3" style="gap:1px;background:rgba(201,168,76,.14);">
+        <div class="wpc" style="gap:0;">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(201,168,76,.35);margin-bottom:14px;"></div>
+          <div class="wb g" style="width:70%;margin-bottom:9px;"></div>
+          <div class="wb sm" style="width:100%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:90%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:82%;"></div>
+        </div>
+        <div class="wpc">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(201,168,76,.35);margin-bottom:14px;"></div>
+          <div class="wb g" style="width:70%;margin-bottom:9px;"></div>
+          <div class="wb sm" style="width:100%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:90%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:82%;"></div>
+        </div>
+        <div class="wpc">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(201,168,76,.35);margin-bottom:14px;"></div>
+          <div class="wb g" style="width:70%;margin-bottom:9px;"></div>
+          <div class="wb sm" style="width:100%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:90%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:82%;"></div>
+        </div>
+      </div>
+      <div class="wnote">Hover: gold bottom border · bg darkens</div>
+    </div>
+
+    <!-- WF Collection — same padding -->
+    <div class="wcollec wsec">
+      <div class="wtag">05 — Product Grid · masonry</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:40px;">
+        <div><div class="wb g" style="width:90px;margin-bottom:7px;"></div><div class="wb lg" style="width:180px;"></div></div>
+        <div class="wghost-s" style="width:80px;height:34px;"></div>
+      </div>
+      <div class="wppg" style="gap:1px;background:rgba(201,168,76,.14);">
+        <div class="wpd big">
+          <div class="wpd-v" style="height:360px;flex-direction:column;gap:8px;">
+            <div style="width:40px;height:88px;background:rgba(201,168,76,.3);border-radius:4px;"></div>
+            <div style="font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">Hero Bottle</div>
+          </div>
+          <div style="padding:18px 20px 22px;">
+            <div class="wb g" style="width:55%;margin-bottom:6px;"></div>
+            <div class="wb" style="width:72%;height:13px;margin-bottom:8px;"></div>
+            <div class="wb sm" style="width:100%;margin-bottom:4px;"></div>
+            <div class="wb sm" style="width:88%;margin-bottom:14px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="wb g" style="width:58px;height:12px;"></div>
+              <div class="wbtn-s" style="width:54px;height:24px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="wpd"><div class="wpd-v" style="height:164px;"><div style="width:24px;height:56px;background:rgba(201,168,76,.26);border-radius:3px;"></div></div><div style="padding:12px 14px;"><div class="wb g" style="width:60%;margin-bottom:5px;"></div><div class="wb sm" style="width:88%;margin-bottom:3px;"></div><div class="wb sm" style="width:76%;"></div></div></div>
+        <div class="wpd"><div class="wpd-v" style="height:164px;"><div style="width:24px;height:56px;background:rgba(201,168,76,.24);border-radius:3px;"></div></div><div style="padding:12px 14px;"><div class="wb g" style="width:60%;margin-bottom:5px;"></div><div class="wb sm" style="width:88%;margin-bottom:3px;"></div><div class="wb sm" style="width:76%;"></div></div></div>
+        <div class="wpd"><div class="wpd-v" style="height:164px;"><div style="width:22px;height:50px;background:rgba(201,168,76,.22);border-radius:3px;"></div></div><div style="padding:12px 14px;"><div class="wb g" style="width:58%;margin-bottom:5px;"></div><div class="wb sm" style="width:84%;margin-bottom:3px;"></div><div class="wb sm" style="width:70%;"></div></div></div>
+        <div class="wpd"><div class="wpd-v" style="height:164px;"><div style="width:22px;height:50px;background:rgba(201,168,76,.2);border-radius:3px;"></div></div><div style="padding:12px 14px;"><div class="wb g" style="width:58%;margin-bottom:5px;"></div><div class="wb sm" style="width:84%;margin-bottom:3px;"></div><div class="wb sm" style="width:70%;"></div></div></div>
+      </div>
+      <div class="wnote">SVG bottles · hover float+glow · badge overlay</div>
+    </div>
+
+    <!-- WF Scent — same padding + 2-col -->
+    <div class="wscent wsec">
+      <div class="wtag">06 — Scent Wheel · 2-col</div>
+      <div style="display:flex;align-items:center;justify-content:center;width:320px;height:320px;margin:0 auto;position:relative;">
+        <div style="width:288px;height:288px;border-radius:50%;border:1px dashed #c4bfb6;position:absolute;"></div>
+        <div style="width:208px;height:208px;border-radius:50%;border:1px dashed #c4bfb6;opacity:.6;position:absolute;"></div>
+        <div style="width:124px;height:124px;border-radius:50%;border:1px dashed #c4bfb6;background:#e8e4de;position:absolute;display:flex;align-items:center;justify-content:center;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#bbb;">Wheel</div>
+        <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#f0ede8;border:1px dashed #c4bfb6;padding:3px 8px;font-size:7px;white-space:nowrap;color:#aaa;">Saffron</div>
+        <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:#f0ede8;border:1px dashed #c4bfb6;padding:3px 8px;font-size:7px;white-space:nowrap;color:#aaa;">Agarwood</div>
+        <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:#f0ede8;border:1px dashed #c4bfb6;padding:3px 8px;font-size:7px;white-space:nowrap;color:#aaa;">Amber</div>
+        <div style="position:absolute;left:0;top:50%;transform:translateY(-50%);background:#f0ede8;border:1px dashed #c4bfb6;padding:3px 8px;font-size:7px;white-space:nowrap;color:#aaa;">Rose</div>
+      </div>
+      <div>
+        <div class="wb g" style="width:100px;margin-bottom:9px;"></div>
+        <div class="wb lg" style="width:180px;margin-bottom:22px;"></div>
+        <div class="wb sm" style="width:100%;margin-bottom:5px;"></div>
+        <div class="wb sm" style="width:92%;margin-bottom:5px;"></div>
+        <div class="wb sm" style="width:85%;margin-bottom:18px;"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <div class="wbtn-s" style="width:72px;height:28px;"></div>
+          <div class="wbtn-s" style="width:80px;height:28px;"></div>
+          <div class="wbtn-s" style="width:76px;height:28px;"></div>
+          <div class="wbtn-s" style="width:88px;height:28px;"></div>
+        </div>
+      </div>
+      <div class="wnote">CSS rotating rings · hover pills · float emoji</div>
+    </div>
+
+    <!-- WF Story — same padding -->
+    <div class="wstory wsec">
+      <div class="wtag">07 — Heritage · 2-col</div>
+      <div class="wsi">
+        <div class="wsv">
+          <div style="width:80px;height:80px;border-radius:50%;background:rgba(201,168,76,.2);"></div>
+          <div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-top:6px;">Brand Visual</div>
+          <div style="position:absolute;bottom:0;left:0;right:0;height:36px;background:#d8d4cc;border-top:1px dashed #c4bfb6;"></div>
+        </div>
+        <div>
+          <div class="wb g" style="width:90px;margin-bottom:9px;"></div>
+          <div class="wb lg" style="width:170px;margin-bottom:20px;"></div>
+          <div class="wb sm" style="width:100%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:94%;margin-bottom:4px;"></div>
+          <div class="wb sm" style="width:88%;margin-bottom:22px;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#c4bfb6;">
+            <div style="background:#eae6e0;padding:18px 12px;text-align:center;"><div style="width:46px;height:16px;background:rgba(201,168,76,.35);border-radius:2px;margin:0 auto 6px;"></div><div style="width:58px;height:6px;background:#d8d4cc;border-radius:2px;margin:0 auto;"></div></div>
+            <div style="background:#eae6e0;padding:18px 12px;text-align:center;"><div style="width:46px;height:16px;background:rgba(201,168,76,.35);border-radius:2px;margin:0 auto 6px;"></div><div style="width:58px;height:6px;background:#d8d4cc;border-radius:2px;margin:0 auto;"></div></div>
+            <div style="background:#eae6e0;padding:18px 12px;text-align:center;"><div style="width:46px;height:16px;background:rgba(201,168,76,.35);border-radius:2px;margin:0 auto 6px;"></div><div style="width:58px;height:6px;background:#d8d4cc;border-radius:2px;margin:0 auto;"></div></div>
+            <div style="background:#eae6e0;padding:18px 12px;text-align:center;"><div style="width:46px;height:16px;background:rgba(201,168,76,.35);border-radius:2px;margin:0 auto 6px;"></div><div style="width:58px;height:6px;background:#d8d4cc;border-radius:2px;margin:0 auto;"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="wnote">Float anim · nested frames · stat counters</div>
+    </div>
+
+    <!-- WF Process — same padding -->
+    <div class="wprocess wsec">
+      <div class="wtag">08 — The Craft · 4 Steps</div>
+      <div style="text-align:center;max-width:400px;margin:0 auto;">
+        <div class="wb g" style="width:90px;height:7px;margin:0 auto 8px;"></div>
+        <div class="wb lg" style="width:160px;margin:0 auto 50px;"></div>
+      </div>
+      <div class="wpgr" style="gap:1px;background:rgba(201,168,76,.14);">
+        <div class="wstep"><div class="wb g" style="width:52%;height:6px;margin-bottom:14px;"></div><div style="width:28px;height:28px;border-radius:3px;background:#d8d4cc;margin-bottom:13px;"></div><div class="wb" style="width:68%;height:11px;margin-bottom:10px;"></div><div class="wb sm" style="width:100%;margin-bottom:4px;"></div><div class="wb sm" style="width:88%;"></div></div>
+        <div class="wstep"><div class="wb g" style="width:52%;height:6px;margin-bottom:14px;"></div><div style="width:28px;height:28px;border-radius:3px;background:#d8d4cc;margin-bottom:13px;"></div><div class="wb" style="width:68%;height:11px;margin-bottom:10px;"></div><div class="wb sm" style="width:100%;margin-bottom:4px;"></div><div class="wb sm" style="width:88%;"></div></div>
+        <div class="wstep"><div class="wb g" style="width:52%;height:6px;margin-bottom:14px;"></div><div style="width:28px;height:28px;border-radius:3px;background:#d8d4cc;margin-bottom:13px;"></div><div class="wb" style="width:68%;height:11px;margin-bottom:10px;"></div><div class="wb sm" style="width:100%;margin-bottom:4px;"></div><div class="wb sm" style="width:88%;"></div></div>
+        <div class="wstep"><div class="wb g" style="width:52%;height:6px;margin-bottom:14px;"></div><div style="width:28px;height:28px;border-radius:3px;background:#d8d4cc;margin-bottom:13px;"></div><div class="wb" style="width:68%;height:11px;margin-bottom:10px;"></div><div class="wb sm" style="width:100%;margin-bottom:4px;"></div><div class="wb sm" style="width:88%;"></div></div>
+      </div>
+      <div class="wnote">Hover: bg darkens</div>
+    </div>
+
+    <!-- WF Testimonial -->
+    <div class="wtesti wsec">
+      <div class="wtag">09 — Testimonial</div>
+      <div style="max-width:380px;margin:0 auto;text-align:center;">
+        <div style="width:18px;height:18px;background:#d8d4cc;border-radius:2px;margin:0 auto 22px;"></div>
+        <div class="wb lg" style="width:88%;margin:0 auto 6px;"></div>
+        <div class="wb lg" style="width:76%;margin:0 auto 6px;"></div>
+        <div class="wb lg" style="width:82%;margin:0 auto 22px;"></div>
+        <div class="wb g" style="width:90px;height:6px;margin:0 auto 22px;"></div>
+        <div style="display:flex;gap:8px;justify-content:center;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(201,168,76,.5);"></div><div style="width:7px;height:7px;border-radius:50%;background:#d8d4cc;border:1px dashed #c4bfb6;"></div><div style="width:7px;height:7px;border-radius:50%;background:#d8d4cc;border:1px dashed #c4bfb6;"></div></div>
+      </div>
+      <div class="wnote">5s auto-rotate · opacity fade · dot nav</div>
+    </div>
+
+    <!-- WF CTA -->
+    <div class="wcta wsec">
+      <div class="wtag">10 — Email CTA</div>
+      <div style="max-width:400px;margin:0 auto;text-align:center;">
+        <div class="wb g" style="width:90px;height:7px;margin:0 auto 14px;"></div>
+        <div class="wb" style="width:58%;height:44px;background:rgba(201,168,76,.2);border-radius:3px;margin:0 auto 14px;"></div>
+        <div class="wb sm" style="width:82%;margin:0 auto 32px;"></div>
+        <div style="display:flex;border:1px dashed #c4bfb6;max-width:360px;margin:0 auto 12px;">
+          <div style="flex:1;height:42px;background:#e8e4de;border-right:1px dashed #c4bfb6;"></div>
+          <div class="wbtn-s" style="width:76px;height:42px;border-left:none;border-radius:0;"></div>
+        </div>
+        <div class="wb sm" style="width:55%;margin:0 auto;"></div>
+      </div>
+      <div class="wnote">Focus: gold glow · radial bg</div>
+    </div>
+
+    <!-- WF Footer -->
+    <div class="wfooter wsec">
+      <div class="wtag">11 — Footer · 4-col</div>
+      <div class="wft" style="padding-top:10px;">
+        <div><div class="wb g" style="width:75%;height:11px;margin-bottom:12px;"></div><div class="wb sm" style="width:100%;margin-bottom:4px;"></div><div class="wb sm" style="width:86%;margin-bottom:4px;"></div><div class="wb sm" style="width:78%;"></div></div>
+        <div><div class="wb g" style="width:58%;height:6px;margin-bottom:14px;"></div><div class="wb sm" style="width:80%;margin-bottom:6px;"></div><div class="wb sm" style="width:68%;margin-bottom:6px;"></div><div class="wb sm" style="width:74%;margin-bottom:6px;"></div><div class="wb sm" style="width:62%;"></div></div>
+        <div><div class="wb g" style="width:58%;height:6px;margin-bottom:14px;"></div><div class="wb sm" style="width:80%;margin-bottom:6px;"></div><div class="wb sm" style="width:68%;margin-bottom:6px;"></div><div class="wb sm" style="width:74%;"></div></div>
+        <div><div class="wb g" style="width:58%;height:6px;margin-bottom:14px;"></div><div class="wb sm" style="width:80%;margin-bottom:6px;"></div><div class="wb sm" style="width:68%;margin-bottom:6px;"></div><div class="wb sm" style="width:74%;"></div></div>
+      </div>
+      <div style="border-top:1px dashed #c4bfb6;padding-top:18px;display:flex;justify-content:space-between;align-items:center;">
+        <div class="wb sm" style="width:160px;"></div>
+        <div style="display:flex;gap:12px;"><div class="wb sm" style="width:46px;"></div><div class="wb sm" style="width:54px;"></div><div class="wb sm" style="width:46px;"></div></div>
+      </div>
+    </div>
+
+  </div><!-- /wire-content -->
+  </div><!-- /pane-wire -->
+
+</div><!-- /wrap -->
+
+<script>
+/* ── PARTICLES (left half only) ── */
+const cvs=document.getElementById('ptcl'),ctx=cvs.getContext('2d');
+function rsz(){cvs.width=window.innerWidth/2;cvs.height=window.innerHeight;}
+rsz();
+window.addEventListener('resize',()=>{rsz();setSlider(curPct/100*window.innerWidth);});
+class Pt{constructor(){this.reset(true);}reset(init){this.x=Math.random()*cvs.width;this.y=init?Math.random()*cvs.height:cvs.height+5;this.s=Math.random()*1.2+.3;this.vx=(Math.random()-.5)*.12;this.vy=-(Math.random()*.2+.04);this.op=Math.random()*.38+.1;this.life=Math.random()*240+120;this.age=init?Math.random()*this.life:0;}tick(){this.x+=this.vx;this.y+=this.vy;this.age++;if(this.age>this.life)this.reset(false);}draw(){const f=this.age<30?this.age/30:this.age>this.life-30?(this.life-this.age)/30:1;ctx.beginPath();ctx.arc(this.x,this.y,this.s,0,Math.PI*2);ctx.fillStyle=`rgba(201,168,76,${this.op*f})`;ctx.fill();}}
+const pts=Array.from({length:70},()=>new Pt());
+(function loop(){ctx.clearRect(0,0,cvs.width,cvs.height);pts.forEach(p=>{p.tick();p.draw();});requestAnimationFrame(loop);})();
+
+/* ── SCROLL SYNC ── */
+const pL=document.getElementById('pane-land');
+const pW=document.getElementById('pane-wire');
+// Scroll sync — both panes scroll together
+let locking=false;
+function syncScroll(src,dst){
+  if(locking)return;
+  locking=true;
+  dst.scrollTop=src.scrollTop;
+  locking=false;
+}
+pL.addEventListener('scroll',()=>syncScroll(pL,pW));
+pW.addEventListener('scroll',()=>syncScroll(pW,pL));
+
+/* ── SCROLL REVEAL ── */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('on');}),{root:pL,threshold:.08});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* ── TESTIMONIALS ── */
+const ts=[
+  {t:"Nothing comes close to Royal Oud Noir. This is what oud is supposed to smell like.",a:"— Arjun Mehta · Mumbai · Verified"},
+  {t:"Rose Oud made people stop me on the street. Subtle yet commanding.",a:"— Priya Sharma · Delhi · Verified"},
+  {t:"Midnight Oud is my evening signature. Dark, complex, unforgettable.",a:"— Rahul Verma · Bangalore · Verified"}
+];
+const tt=document.getElementById('ttext'),ta=document.getElementById('tauth');
+function setT(i){tt.style.opacity=ta.style.opacity='0';setTimeout(()=>{tt.textContent=ts[i].t;ta.textContent=ts[i].a;tt.style.opacity=ta.style.opacity='1';},360);document.querySelectorAll('.td').forEach((d,j)=>d.classList.toggle('on',j===i));}
+tt.style.transition=ta.style.transition='opacity .35s';
+let ti=0;setInterval(()=>{ti=(ti+1)%3;setT(ti);},5000);
+
+/* ── SLIDER ── */
+const slider=document.getElementById('slider');
+const lblW=document.getElementById('lbl-wire');
+let dragging=false;
+
+function setSlider(px){
+  const pct=Math.max(2,Math.min(98,px/window.innerWidth*100));
+  // Wireframe is clipped from the LEFT — clip = inset(0 0 0 pct%)
+  // So right side shows wireframe, left side shows landing
+  pW.style.clipPath='inset(0 0 0 '+pct+'%)';
+  lblW.style.clipPath='inset(0 0 0 '+pct+'%)';
+  slider.style.left=pct+'%';
+  curPct=pct;
+}
+let curPct=50;
+
+// Slider drag - attach to both slider strip and button
+function startDrag(e){dragging=true;e.preventDefault();e.stopPropagation();}
+slider.addEventListener('mousedown',startDrag);
+document.getElementById('sl-btn').addEventListener('mousedown',startDrag);
+document.addEventListener('mousemove',e=>{if(dragging)setSlider(e.clientX);});
+document.addEventListener('mouseup',()=>{dragging=false;});
+slider.addEventListener('touchstart',e=>{dragging=true;e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{if(dragging)setSlider(e.touches[0].clientX);},{passive:true});
+document.addEventListener('touchend',()=>{dragging=false;});
+</script>
+</body>
+</html>
